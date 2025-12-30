@@ -1369,6 +1369,11 @@
             
             const animal = document.getElementById('printAnimal').innerText.trim() || "SemNome";
             
+            // Tenta pegar o tipo de documento do input manual se estiver visível, senão pega do select
+            // Na verdade, a função gerarRelatorio já atualizou o printTipoDoc com o texto correto (seja manual ou select)
+            // Então podemos pegar direto do printTipoDoc
+            const tipoDoc = document.getElementById('printTipoDoc').innerText.trim() || "DOCUMENTO";
+            
             // Pegar a data do input para formatar
             const dataInput = document.getElementById('dataAtendimento').value;
             let dataFormatada = "";
@@ -1384,8 +1389,8 @@
             const nomeFixo = "DR.MANUEL VICTOR - CRMV-PI 02120 VP";
             
             // Montar o nome final
-            // Ex: BRENDA_30-12-2025_DR.MANUEL VICTOR - CRMV-PI 02120 VP.pdf
-            const nomeArquivo = `${animal}_${dataFormatada}_${nomeFixo}.pdf`;
+            // Ex: RECEITUÁRIO MÉDICO_BRENDA_30-12-2025_DR.MANUEL VICTOR - CRMV-PI 02120 VP.pdf
+            const nomeArquivo = `${tipoDoc}_${animal}_${dataFormatada}_${nomeFixo}.pdf`;
             
             // Calcula a altura em mm baseada no conteúdo (1px = 0.264583 mm)
             // Adiciona uma margem de segurança
