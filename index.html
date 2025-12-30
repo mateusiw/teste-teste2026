@@ -41,6 +41,14 @@
                 border: none !important;
             }
             input, select, textarea { border: none !important; background: transparent !important; resize: none; }
+            /* Esconder setas de formulário na impressão */
+            .select-arrow { display: none !important; }
+            .appearance-none { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+            /* Forçar exibição de campos manuais se estiverem visíveis */
+            .manual-input-visible { display: block !important; }
+            
+            /* Garantir que links pareçam texto normal mas funcionem */
+            a { text-decoration: none; color: inherit; }
         }
 
         .a4-paper {
@@ -100,6 +108,47 @@
             align-items: center;
             border-radius: 0 4px 4px 0;
         }
+
+        /* Classe utilitária para os Selects Chiques */
+        .select-chic {
+            appearance: none;
+            width: 100%;
+            background-color: white;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 0.5rem 0.75rem;
+            padding-right: 2rem; /* Espaço para a seta */
+            border-radius: 0.375rem;
+            line-height: 1.25;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .select-chic:focus {
+            outline: none;
+            ring: 2px;
+            --tw-ring-color: #14b8a6; /* teal-500 */
+            border-color: transparent;
+        }
+        .select-chic:hover {
+            border-color: #5eead4; /* teal-300 */
+        }
+        /* Wrapper para posicionar a seta */
+        .select-wrapper {
+            position: relative;
+        }
+        .select-icon {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            padding-left: 0.5rem;
+            padding-right: 0.75rem;
+            color: #6b7280; /* gray-500 */
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -110,14 +159,23 @@
         <!-- Header do App -->
         <header class="mb-6 flex items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div>
-                <h1 class="text-2xl font-bold text-teal-700 flex items-center gap-2">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> Gerador de Documentos
+                <h1 class="text-2xl font-bold text-gray-800">
+                    Gerador de Documentos
                 </h1>
                 <p class="text-gray-500 text-sm">Configurado para: Dr. Manuel Victor</p>
             </div>
-            <button onclick="limparFormulario()" class="text-red-500 hover:text-red-700 text-sm font-medium border border-red-200 px-3 py-1 rounded hover:bg-red-50">
-                <i class="fa-solid fa-trash"></i> Limpar Tudo
-            </button>
+            <div class="flex gap-2">
+                <div class="text-xs text-right mr-2 text-gray-400 hidden md:block">
+                    <p>Para links clicáveis:</p>
+                    <p>Use o botão <b>Imprimir</b></p>
+                </div>
+                <button onclick="exportarParaCSV()" class="text-green-700 hover:text-green-900 text-sm font-medium border border-green-200 px-4 py-2 rounded hover:bg-green-50 transition">
+                    Salvar CSV
+                </button>
+                <button onclick="limparFormulario()" class="text-red-600 hover:text-red-800 text-sm font-medium border border-red-200 px-4 py-2 rounded hover:bg-red-50 transition">
+                    Limpar Tudo
+                </button>
+            </div>
         </header>
 
         <form id="vetForm" onsubmit="event.preventDefault(); gerarRelatorio();" class="space-y-6">
@@ -132,47 +190,95 @@
 
             <!-- Seção 1: Dados do Atendimento -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-regular fa-calendar-check"></i> Dados do Atendimento</h2>
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Dados do Atendimento</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
-                        <label class="block text-sm font-medium text-gray-700">Tipo de Documento</label>
-                        <select id="tipoDocumento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" onchange="atualizarTituloDocumento()">
-                            <option value="PRONTUÁRIO MÉDICO">Prontuário Médico</option>
-                            <option value="RECEITUÁRIO">Receituário</option>
-                            <option value="ENCAMINHAMENTO">Encaminhamento</option>
-                            <option value="ATESTADO">Atestado</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+                        
+                        <!-- Modo Lista Suspensa (Tipo de Documento) -->
+                        <div id="wrapperTipoDocSelect" class="select-wrapper">
+                            <select id="tipoDocumento" class="select-chic" onchange="verificarTipoDocManual(this)">
+                                <option value="PRONTUÁRIO MÉDICO">Prontuário Médico</option>
+                                <option value="RECEITUÁRIO">Receituário</option>
+                                <option value="ENCAMINHAMENTO">Encaminhamento</option>
+                                <option value="ATESTADO">Atestado</option>
+                                <option value="Outro (Digitar)">Outro (Digitar)</option>
+                            </select>
+                            <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                        </div>
+
+                        <!-- Modo Digitação Manual (Tipo de Documento) -->
+                        <div id="wrapperTipoDocManual" class="hidden flex gap-1">
+                            <input type="text" id="tipoDocumentoManual" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" placeholder="Digite o nome do documento..." oninput="atualizarTituloDocumento()">
+                            <button type="button" onclick="cancelarTipoDocManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded" title="Voltar para lista">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Data</label>
-                        <input type="date" id="dataAtendimento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                        <input type="date" id="dataAtendimento" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm">
                     </div>
                 </div>
             </div>
 
             <!-- Seção 2: Identificação -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-paw"></i> Identificação</h2>
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Identificação</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Linha 1 -->
                     <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700">Nome do Animal *</label>
-                        <input type="text" id="animalNome" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" required placeholder="Ex: Rex">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Animal *</label>
+                        <input type="text" id="animalNome" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" required placeholder="Ex: Rex (ou Trovão, Jiboia...)">
                     </div>
                     <div class="md:col-span-1">
                          <div class="flex gap-4">
                             <div class="w-1/2">
-                                <label class="block text-sm font-medium text-gray-700">Espécie</label>
-                                <select id="animalEspecie" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
-                                    <option>Canina</option>
-                                    <option>Felina</option>
-                                    <option>Outra</option>
-                                </select>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Espécie</label>
+                                
+                                <!-- Modo Lista Suspensa (Espécie) -->
+                                <div id="wrapperEspecieSelect" class="select-wrapper">
+                                    <select id="animalEspecie" class="select-chic" onchange="verificarEspecieManual(this)">
+                                        <option value="Canina" selected>Canina</option>
+                                        <option value="Felina">Felina</option>
+                                        <option value="Equina">Equina (Cavalo)</option>
+                                        <option value="Bovina">Bovina</option>
+                                        <option value="Ave">Ave</option>
+                                        <option value="Réptil">Réptil (Cobra/Lagarto)</option>
+                                        <option value="Roedor">Roedor/Coelho</option>
+                                        <option value="Outra (Digitar)">Outra (Digitar)</option>
+                                    </select>
+                                    <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                                </div>
+
+                                <!-- Modo Digitação Manual (Espécie) -->
+                                <div id="wrapperEspecieManual" class="hidden flex gap-1">
+                                    <input type="text" id="animalEspecieManual" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" placeholder="Digite a espécie...">
+                                    <button type="button" onclick="cancelarEspecieManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded" title="Voltar para lista">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
+                            
                             <div class="w-1/2">
-                                <label class="block text-sm font-medium text-gray-700">Raça</label>
-                                <input type="text" id="animalRaca" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Raça / Tipo</label>
+                                
+                                <!-- Modo Lista Suspensa (Raça) -->
+                                <div id="wrapperRacaSelect" class="select-wrapper">
+                                    <select id="animalRacaSelect" class="select-chic" onchange="verificarRacaManual(this)">
+                                        <!-- Preenchido via Javascript -->
+                                    </select>
+                                    <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                                </div>
+
+                                <!-- Modo Digitação Manual (Raça) -->
+                                <div id="wrapperRacaManual" class="hidden flex gap-1">
+                                    <input type="text" id="animalRacaManual" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" placeholder="Digite a raça/tipo...">
+                                    <button type="button" onclick="cancelarRacaManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded" title="Voltar para lista">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -180,73 +286,114 @@
                     <!-- Linha 2 -->
                     <div class="md:col-span-1">
                         <div class="flex gap-4">
+                             <!-- NOVO CAMPO DE IDADE COM SELECT -->
                              <div class="w-1/2">
-                                <label class="block text-sm font-medium text-gray-700">Idade</label>
-                                <input type="text" id="animalIdade" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Idade</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="animalIdadeValor" class="w-1/3 min-w-[60px] bg-white border border-gray-300 text-gray-700 py-2 px-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm text-center" placeholder="0">
+                                    <div class="select-wrapper w-2/3">
+                                        <select id="animalIdadeTipo" class="select-chic">
+                                            <option value="Anos">Anos</option>
+                                            <option value="Meses">Meses</option>
+                                            <option value="Dias">Dias</option>
+                                        </select>
+                                        <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                                    </div>
+                                </div>
                             </div>
+                            
                             <div class="w-1/2">
-                                <label class="block text-sm font-medium text-gray-700">Peso (kg)</label>
-                                <input type="number" step="0.1" id="animalPeso" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+                                <input type="number" step="0.1" id="animalPeso" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm">
                             </div>
                         </div>
                     </div>
                     <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700">Sexo</label>
-                        <select id="animalSexo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200">
-                            <option>Macho</option>
-                            <option>Fêmea</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+                        
+                        <!-- Modo Lista Suspensa (Sexo) -->
+                        <div id="wrapperSexoSelect" class="select-wrapper">
+                            <select id="animalSexo" class="select-chic" onchange="verificarSexoManual(this)">
+                                <option value="Macho">Macho</option>
+                                <option value="Fêmea">Fêmea</option>
+                                <option value="Indefinido">Indefinido (Aves/Répteis)</option>
+                                <option value="Outro (Digitar)">Outro (Digitar)</option>
+                            </select>
+                            <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                        </div>
+
+                        <!-- Modo Digitação Manual (Sexo) -->
+                        <div id="wrapperSexoManual" class="hidden flex gap-1">
+                            <input type="text" id="animalSexoManual" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" placeholder="Digite o sexo...">
+                            <button type="button" onclick="cancelarSexoManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded" title="Voltar para lista">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Linha 3 (Tutor) -->
                     <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700">Responsável (Tutor) *</label>
-                        <input type="text" id="tutorNome" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" required>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Responsável (Tutor) *</label>
+                        <input type="text" id="tutorNome" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" required>
                     </div>
                     <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700">CPF do Responsável</label>
-                        <input type="text" id="tutorCPF" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-teal-500 focus:ring-teal-200" placeholder="000.000.000-00">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF do Responsável</label>
+                        <input type="text" id="tutorCPF" oninput="mascaraCPF(this)" maxlength="14" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm" placeholder="000.000.000-00">
                     </div>
                 </div>
             </div>
 
             <!-- Seção 3: Parâmetros Clínicos -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-heart-pulse"></i> Parâmetros Clínicos</h2>
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Parâmetros Clínicos</h2>
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     <div>
                         <label class="text-xs font-bold text-gray-500">TEMP (°C)</label>
-                        <input type="number" step="0.1" id="paramTemp" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                        <input type="number" step="0.1" id="paramTemp" class="w-full border-gray-300 rounded text-sm p-2 border focus:outline-none focus:ring-2 focus:ring-teal-500">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-500">FC (bpm)</label>
-                        <input type="number" id="paramFC" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                        <input type="number" id="paramFC" class="w-full border-gray-300 rounded text-sm p-2 border focus:outline-none focus:ring-2 focus:ring-teal-500">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-500">FR (mpm)</label>
-                        <input type="number" id="paramFR" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                        <input type="number" id="paramFR" class="w-full border-gray-300 rounded text-sm p-2 border focus:outline-none focus:ring-2 focus:ring-teal-500">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-500">TPC (s)</label>
-                        <input type="text" id="paramTPC" class="w-full border-gray-300 rounded text-sm p-1.5 border">
+                        <input type="text" id="paramTPC" class="w-full border-gray-300 rounded text-sm p-2 border focus:outline-none focus:ring-2 focus:ring-teal-500">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-500">Mucosas</label>
-                        <select id="paramMucosas" class="w-full border-gray-300 rounded text-sm p-1.5 border">
-                            <option value="">--</option>
-                            <option value="Normocoradas">Normocoradas</option>
-                            <option value="Pálidas">Pálidas</option>
-                            <option value="Congestas">Congestas</option>
-                            <option value="Ictéricas">Ictéricas</option>
-                            <option value="Cianóticas">Cianóticas</option>
-                        </select>
+                        
+                        <!-- Modo Lista Suspensa (Mucosas) -->
+                        <div id="wrapperMucosasSelect" class="select-wrapper">
+                            <select id="paramMucosas" class="select-chic" onchange="verificarMucosasManual(this)">
+                                <option value="" class="text-gray-400">Selecione...</option>
+                                <option value="Normocoradas">Normocoradas</option>
+                                <option value="Pálidas">Pálidas</option>
+                                <option value="Congestas">Congestas</option>
+                                <option value="Ictéricas">Ictéricas</option>
+                                <option value="Cianóticas">Cianóticas</option>
+                                <option value="Outro (Digitar)">Outro (Digitar)</option>
+                            </select>
+                            <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                        </div>
+
+                        <!-- Modo Digitação Manual (Mucosas) -->
+                        <div id="wrapperMucosasManual" class="hidden flex gap-1">
+                            <input type="text" id="paramMucosasManual" class="w-full border-gray-300 rounded text-sm p-2 border focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Digite...">
+                            <button type="button" onclick="cancelarMucosasManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded" title="Voltar para lista">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Seção 4: Conteúdo do Documento -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2"><i class="fa-solid fa-pen-to-square"></i> Conteúdo Clínico</h2>
+                <h2 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Conteúdo Clínico</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
@@ -269,87 +416,143 @@
                         <!-- Medicamento -->
                         <div class="md:col-span-4">
                             <label class="block text-xs font-bold text-gray-600 mb-1">MEDICAMENTO</label>
-                            <select id="rxMedicamento" class="w-full rounded border-gray-300 text-sm p-2 focus:ring-teal-500 focus:border-teal-500">
-                                <option value="" disabled selected>Selecione...</option>
-                                <optgroup label="Antibióticos">
-                                    <option>Amoxicilina</option>
-                                    <option>Amoxicilina + Clavulanato</option>
-                                    <option>Cefalexina</option>
-                                    <option>Doxiciclina</option>
-                                    <option>Enrofloxacina</option>
-                                    <option>Metronidazol</option>
-                                </optgroup>
-                                <optgroup label="Anti-inflamatórios/Cort">
-                                    <option>Meloxicam</option>
-                                    <option>Ketoprofeno</option>
-                                    <option>Carprofeno</option>
-                                    <option>Prednisolona</option>
-                                    <option>Dexametasona</option>
-                                </optgroup>
-                                <optgroup label="Analgesia">
-                                    <option>Dipirona</option>
-                                    <option>Tramadol</option>
-                                    <option>Gabapentina</option>
-                                </optgroup>
-                                <optgroup label="Gastro/Outros">
-                                    <option>Omeprazol</option>
-                                    <option>Ondansetrona</option>
-                                    <option>Ranitidina</option>
-                                    <option>Simparic</option>
-                                    <option>Bravecto</option>
-                                    <option>Nexgard</option>
-                                    <option>Drontal</option>
-                                </optgroup>
-                            </select>
+                            
+                            <!-- Select Medicamento -->
+                            <div id="wrapperMedicamentoSelect" class="select-wrapper">
+                                <select id="rxMedicamento" class="select-chic" onchange="verificarMedicamentoManual(this)">
+                                    <option value="" disabled selected>Selecione...</option>
+                                    <optgroup label="Antibióticos">
+                                        <option value="Amoxicilina">Amoxicilina</option>
+                                        <option value="Amoxicilina + Clavulanato">Amoxicilina + Clavulanato</option>
+                                        <option value="Cefalexina">Cefalexina</option>
+                                        <option value="Doxiciclina">Doxiciclina</option>
+                                        <option value="Enrofloxacina">Enrofloxacina</option>
+                                        <option value="Metronidazol">Metronidazol</option>
+                                    </optgroup>
+                                    <optgroup label="Anti-inflamatórios/Cort">
+                                        <option value="Meloxicam">Meloxicam</option>
+                                        <option value="Ketoprofeno">Ketoprofeno</option>
+                                        <option value="Carprofeno">Carprofeno</option>
+                                        <option value="Prednisolona">Prednisolona</option>
+                                        <option value="Dexametasona">Dexametasona</option>
+                                    </optgroup>
+                                    <optgroup label="Analgesia">
+                                        <option value="Dipirona">Dipirona</option>
+                                        <option value="Tramadol">Tramadol</option>
+                                        <option value="Gabapentina">Gabapentina</option>
+                                    </optgroup>
+                                    <optgroup label="Gastro/Outros">
+                                        <option value="Omeprazol">Omeprazol</option>
+                                        <option value="Ondansetrona">Ondansetrona</option>
+                                        <option value="Ranitidina">Ranitidina</option>
+                                        <option value="Simparic">Simparic</option>
+                                        <option value="Bravecto">Bravecto</option>
+                                        <option value="Nexgard">Nexgard</option>
+                                        <option value="Drontal">Drontal</option>
+                                    </optgroup>
+                                    <option value="Outro (Digitar)">Outro (Digitar)</option>
+                                </select>
+                                <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                            </div>
+
+                            <!-- Manual Medicamento -->
+                            <div id="wrapperMedicamentoManual" class="hidden flex gap-1">
+                                <input type="text" id="rxMedicamentoManual" class="w-full rounded border-gray-300 text-sm p-2 focus:ring-teal-500 focus:border-teal-500" placeholder="Nome do medicamento...">
+                                <button type="button" onclick="cancelarMedicamentoManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded" title="Voltar para lista">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- Concentração -->
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-600 mb-1">MG / CONC.</label>
-                            <input list="listaDosagens" id="rxDosagem" placeholder="Ex: 50mg" class="w-full rounded border-gray-300 text-sm p-2">
-                            <datalist id="listaDosagens">
-                                <option value="Xarope/Susp.">
-                                <option value="Gotas">
-                                <option value="10mg">
-                                <option value="20mg">
-                                <option value="25mg">
-                                <option value="50mg">
-                                <option value="100mg">
-                                <option value="200mg">
-                                <option value="250mg">
-                                <option value="500mg">
-                                <option value="1g">
-                            </datalist>
+                            
+                            <!-- Select Dosagem -->
+                            <div id="wrapperDosagemSelect" class="select-wrapper">
+                                <select id="rxDosagem" class="select-chic" onchange="verificarDosagemManual(this)">
+                                    <option value="">Selecione...</option>
+                                    <option value="Xarope/Susp.">Xarope/Susp.</option>
+                                    <option value="Gotas">Gotas</option>
+                                    <option value="10mg">10mg</option>
+                                    <option value="20mg">20mg</option>
+                                    <option value="25mg">25mg</option>
+                                    <option value="50mg">50mg</option>
+                                    <option value="100mg">100mg</option>
+                                    <option value="200mg">200mg</option>
+                                    <option value="250mg">250mg</option>
+                                    <option value="500mg">500mg</option>
+                                    <option value="1g">1g</option>
+                                    <option value="Outro (Digitar)">Outro (Digitar)</option>
+                                </select>
+                                <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                            </div>
+
+                            <!-- Manual Dosagem -->
+                            <div id="wrapperDosagemManual" class="hidden flex gap-1">
+                                <input type="text" id="rxDosagemManual" class="w-full rounded border-gray-300 text-sm p-2" placeholder="Ex: 5ml">
+                                <button type="button" onclick="cancelarDosagemManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-2 rounded" title="Voltar para lista">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Frequência -->
                         <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-600 mb-1">FREQUÊNCIA (DIA)</label>
-                            <select id="rxFrequencia" class="w-full rounded border-gray-300 text-sm p-2">
-                                <option value="a cada 24h (SID)">1x ao dia (24h)</option>
-                                <option value="a cada 12h (BID)">2x ao dia (12h)</option>
-                                <option value="a cada 8h (TID)">3x ao dia (8h)</option>
-                                <option value="a cada 6h (QID)">4x ao dia (6h)</option>
-                                <option value="a cada 48h">Dias alternados</option>
-                                <option value="dose única">Dose Única</option>
-                            </select>
+                            
+                            <!-- Select Frequencia -->
+                            <div id="wrapperFrequenciaSelect" class="select-wrapper">
+                                <select id="rxFrequencia" class="select-chic" onchange="verificarFrequenciaManual(this)">
+                                    <option value="a cada 24h (SID)">1x ao dia (24h)</option>
+                                    <option value="a cada 12h (BID)">2x ao dia (12h)</option>
+                                    <option value="a cada 8h (TID)">3x ao dia (8h)</option>
+                                    <option value="a cada 6h (QID)">4x ao dia (6h)</option>
+                                    <option value="a cada 48h">Dias alternados</option>
+                                    <option value="dose única">Dose Única</option>
+                                    <option value="Outro (Digitar)">Outro (Digitar)</option>
+                                </select>
+                                <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                            </div>
+
+                            <!-- Manual Frequencia -->
+                            <div id="wrapperFrequenciaManual" class="hidden flex gap-1">
+                                <input type="text" id="rxFrequenciaManual" class="w-full rounded border-gray-300 text-sm p-2" placeholder="Ex: a cada 4 horas">
+                                <button type="button" onclick="cancelarFrequenciaManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-2 rounded" title="Voltar para lista">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Tempo -->
                         <div class="md:col-span-3 flex gap-2">
                             <div class="w-full">
                                 <label class="block text-xs font-bold text-gray-600 mb-1">TEMPO DE USO</label>
-                                <select id="rxTempo" class="w-full rounded border-gray-300 text-sm p-2">
-                                    <option value="uso único">Uso Único</option>
-                                    <option value="por 3 dias">3 dias</option>
-                                    <option value="por 5 dias">5 dias</option>
-                                    <option value="por 7 dias">7 dias</option>
-                                    <option value="por 10 dias">10 dias</option>
-                                    <option value="por 14 dias">14 dias</option>
-                                    <option value="por 21 dias">21 dias</option>
-                                    <option value="por 30 dias">30 dias</option>
-                                    <option value="uso contínuo">Uso contínuo</option>
-                                </select>
+                                
+                                <!-- Select Tempo -->
+                                <div id="wrapperTempoSelect" class="select-wrapper">
+                                    <select id="rxTempo" class="select-chic" onchange="verificarTempoManual(this)">
+                                        <option value="uso único">Uso Único</option>
+                                        <option value="por 3 dias">3 dias</option>
+                                        <option value="por 5 dias">5 dias</option>
+                                        <option value="por 7 dias">7 dias</option>
+                                        <option value="por 10 dias">10 dias</option>
+                                        <option value="por 14 dias">14 dias</option>
+                                        <option value="por 21 dias">21 dias</option>
+                                        <option value="por 30 dias">30 dias</option>
+                                        <option value="uso contínuo">Uso contínuo</option>
+                                        <option value="Outro (Digitar)">Outro (Digitar)</option>
+                                    </select>
+                                    <div class="select-icon"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                                </div>
+
+                                <!-- Manual Tempo -->
+                                <div id="wrapperTempoManual" class="hidden flex gap-1">
+                                    <input type="text" id="rxTempoManual" class="w-full rounded border-gray-300 text-sm p-2" placeholder="Ex: até acabar">
+                                    <button type="button" onclick="cancelarTempoManual()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-2 rounded" title="Voltar para lista">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="flex items-end">
                                 <button type="button" onclick="adicionarMedicamento()" class="bg-teal-600 hover:bg-teal-700 text-white p-2 rounded shadow h-[38px] w-[38px] flex items-center justify-center" title="Adicionar à lista">
@@ -375,7 +578,7 @@
             </div>
 
             <button type="submit" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition duration-200 flex justify-center items-center gap-2 text-lg uppercase tracking-wide">
-                <i class="fa-solid fa-print"></i> Gerar Documento
+                GERAR DOCUMENTO
             </button>
         </form>
     </div>
@@ -390,10 +593,10 @@
             </button>
             <div class="flex gap-2">
                 <button onclick="baixarPDF()" class="bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2 px-6 rounded shadow flex items-center gap-2">
-                    <i class="fa-solid fa-download"></i> Baixar PDF
+                    Baixar PDF
                 </button>
                 <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-6 rounded shadow flex items-center gap-2">
-                    <i class="fa-solid fa-print"></i> Imprimir
+                    Imprimir
                 </button>
             </div>
         </div>
@@ -409,7 +612,9 @@
                 <h1 class="text-2xl font-bold text-black uppercase" id="printClinicaNome">DR. MANUEL VICTOR DOS SANTOS GOMES</h1>
                 <p class="font-bold text-sm text-gray-800 mt-1" id="printCrmv">CRMV-PI: 02120 VP</p>
                 <p class="text-xs text-gray-600 mt-1 uppercase tracking-wide" id="printEndereco">PRAÇA DA INDEPENDÊNCIA, N° 50, CENTRO, ALTOS PI, CEP 64.290-000</p>
-                <p class="text-xs text-gray-600 font-medium" id="printContatos">(86) 99427-5801 / (88) 99413-9399</p>
+                <div class="text-xs text-gray-600 font-medium" id="printContatos">
+                    <!-- Links serão injetados aqui -->
+                </div>
             </div>
 
             <!-- Barra de Título do Documento -->
@@ -441,6 +646,13 @@
                     
                     <span class="doc-info-label">CPF:</span>
                     <div class="w-40 doc-info-value" id="printCpf">---</div>
+                </div>
+
+                <!-- Linha 3: Sexo e Outros (Aparecerá só se necessário ou customizado) -->
+                <!-- Sexo adicionado a pedidos -->
+                <div class="flex flex-wrap items-baseline mt-2">
+                    <span class="doc-info-label">SEXO:</span>
+                    <div class="flex-grow doc-info-value" id="printSexo">---</div>
                 </div>
 
                 <!-- Linha Oculta de Parâmetros -->
@@ -497,13 +709,16 @@
                 <!-- Footer Branding -->
                 <div class="border-t-2 border-gray-800 pt-3 pb-2 flex justify-between items-center px-8 text-xs font-bold text-gray-700 uppercase tracking-wider">
                     <div class="flex items-center gap-1">
-                        <i class="fa-brands fa-instagram"></i> MV.MANUELVICTOR
+                        <a href="https://www.instagram.com/mv.manuelvictor/" target="_blank" class="flex items-center gap-1 hover:text-black hover:underline">
+                            <i class="fa-brands fa-instagram"></i> MV.MANUELVICTOR
+                        </a>
                     </div>
                     <div>
-                         (88) 99413-9399
+                         <a href="https://wa.me/5588994139399" target="_blank" class="hover:text-black">(88) 99413-9399</a>
                     </div>
                 </div>
-                <div class="bg-gray-800 text-white text-[10px] py-1 uppercase tracking-widest w-full">
+                <!-- RODAPÉ DINÂMICO -->
+                <div class="bg-gray-800 text-white text-[10px] py-1 uppercase tracking-widest w-full" id="printFooterTipo">
                     Receituário Médico Veterinário
                 </div>
             </div>
@@ -516,35 +731,325 @@
         // Array para armazenar os medicamentos adicionados
         let listaReceita = [];
 
+        // Dados de Raças para filtrar
+        const racas = {
+            'Canina': ["SRD (Sem Raça Definida)", "Shih Tzu", "Yorkshire", "Poodle", "Lhasa Apso", "Buldogue Francês", "Golden Retriever", "Labrador", "Pinscher", "Schnauzer", "Spitz Alemão", "Pit Bull", "Chow Chow", "Pug", "Rottweiler", "Beagle", "Dachshund", "Border Collie", "Pastor Alemão", "Outra (Digitar)"],
+            'Felina': ["SRD (Sem Raça Definida)", "Siamês", "Persa", "Angorá", "Maine Coon", "Ragdoll", "Outra (Digitar)"],
+            'Equina': ["SRD (Sem Raça Definida)", "Quarto de Milha", "Mangalarga Marchador", "Crioulo", "Paint Horse", "Puro Sangue Inglês (PSI)", "Pônei", "Outra (Digitar)"],
+            'Bovina': ["SRD (Sem Raça Definida)", "Nelore", "Holandês", "Angus", "Brahman", "Girolando", "Outra (Digitar)"],
+            'Ave': ["Calopsita", "Canário", "Papagaio", "Periquito", "Galinha", "Pato", "Outra (Digitar)"],
+            'Réptil': ["Serpente / Cobra", "Iguana", "Jabuti / Tartaruga", "Lagarto", "Outra (Digitar)"],
+            'Roedor': ["Coelho", "Porquinho da Índia", "Hamster", "Chinchila", "Rato", "Outra (Digitar)"],
+            'Outra (Digitar)': ["Outra (Digitar)"],
+            'Outra': ["Outra (Digitar)"]
+        };
+
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('dataAtendimento').valueAsDate = new Date();
+            // Inicializa as raças com o valor padrão (Canina)
+            atualizarRacas();
+            atualizarTituloDocumento();
         });
+
+        // ============================================
+        // Lógica para Tipo de Documento Manual
+        // ============================================
+        function verificarTipoDocManual(select) {
+            // Check for correct masculine value "Outro (Digitar)"
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperTipoDocSelect').classList.add('hidden');
+                document.getElementById('wrapperTipoDocManual').classList.remove('hidden');
+                document.getElementById('wrapperTipoDocManual').classList.add('flex');
+                document.getElementById('tipoDocumentoManual').focus();
+                atualizarTituloDocumento();
+            } else {
+                atualizarTituloDocumento();
+            }
+        }
+
+        function cancelarTipoDocManual() {
+            document.getElementById('wrapperTipoDocManual').classList.add('hidden');
+            document.getElementById('wrapperTipoDocManual').classList.remove('flex');
+            document.getElementById('wrapperTipoDocSelect').classList.remove('hidden');
+            
+            const select = document.getElementById('tipoDocumento');
+            select.value = "PRONTUÁRIO MÉDICO"; 
+            document.getElementById('tipoDocumentoManual').value = "";
+            atualizarTituloDocumento();
+        }
+
+        function atualizarTituloDocumento() {
+            const select = document.getElementById('tipoDocumento');
+            let tipo = "";
+            
+            if (select.value === 'Outro (Digitar)') {
+                tipo = document.getElementById('tipoDocumentoManual').value || "DOCUMENTO";
+            } else {
+                tipo = select.value;
+            }
+            
+            // Atualiza a marca d'água e o rodapé
+            const primeiraPalavra = tipo.split(' ')[0] || "DOC";
+            document.getElementById('watermarkText').innerText = primeiraPalavra.toUpperCase(); 
+            
+            // Atualiza o rodapé para combinar com o título
+            document.getElementById('printFooterTipo').innerText = tipo.toUpperCase() + " MÉDICO VETERINÁRIO";
+        }
+
+        // ============================================
+        // Lógica para Espécie Manual
+        // ============================================
+        function verificarEspecieManual(select) {
+            if (select.value === 'Outra (Digitar)') {
+                document.getElementById('wrapperEspecieSelect').classList.add('hidden');
+                document.getElementById('wrapperEspecieManual').classList.remove('hidden');
+                document.getElementById('wrapperEspecieManual').classList.add('flex');
+                document.getElementById('animalEspecieManual').focus();
+                
+                // Atualiza raças para permitir digitar qualquer coisa ou genérico
+                atualizarRacas('Outra'); 
+            } else {
+                atualizarRacas();
+            }
+        }
+
+        function cancelarEspecieManual() {
+            document.getElementById('wrapperEspecieManual').classList.add('hidden');
+            document.getElementById('wrapperEspecieManual').classList.remove('flex');
+            document.getElementById('wrapperEspecieSelect').classList.remove('hidden');
+            
+            const select = document.getElementById('animalEspecie');
+            select.value = "Canina"; 
+            document.getElementById('animalEspecieManual').value = "";
+            atualizarRacas();
+        }
+
+        // Atualizar lista de raças
+        function atualizarRacas(forcedEspecie = null) {
+            const selectEspecie = document.getElementById('animalEspecie');
+            const especie = forcedEspecie || selectEspecie.value;
+            const selectRaca = document.getElementById('animalRacaSelect');
+            
+            // Limpa opções atuais
+            selectRaca.innerHTML = '<option value="" disabled selected>Selecione...</option>';
+            
+            // Pega a lista correta e popula
+            const lista = racas[especie] || racas['Outra'];
+            
+            lista.forEach(raca => {
+                const opt = document.createElement('option');
+                opt.value = raca;
+                opt.innerText = raca;
+                selectRaca.appendChild(opt);
+            });
+
+            // Reseta para o modo select caso estivesse no manual
+            cancelarRacaManual();
+        }
+
+        // ============================================
+        // Lógica para Raça Manual
+        // ============================================
+        function verificarRacaManual(select) {
+            if (select.value === 'Outra (Digitar)') {
+                document.getElementById('wrapperRacaSelect').classList.add('hidden');
+                document.getElementById('wrapperRacaManual').classList.remove('hidden');
+                document.getElementById('wrapperRacaManual').classList.add('flex');
+                document.getElementById('animalRacaManual').focus();
+            }
+        }
+
+        function cancelarRacaManual() {
+            document.getElementById('wrapperRacaManual').classList.add('hidden');
+            document.getElementById('wrapperRacaManual').classList.remove('flex');
+            document.getElementById('wrapperRacaSelect').classList.remove('hidden');
+            
+            // Reseta o select para o primeiro item (ou vazio)
+            const select = document.getElementById('animalRacaSelect');
+            select.value = "";
+            document.getElementById('animalRacaManual').value = "";
+        }
+
+        // ============================================
+        // Lógica para Sexo Manual
+        // ============================================
+        function verificarSexoManual(select) {
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperSexoSelect').classList.add('hidden');
+                document.getElementById('wrapperSexoManual').classList.remove('hidden');
+                document.getElementById('wrapperSexoManual').classList.add('flex');
+                document.getElementById('animalSexoManual').focus();
+            }
+        }
+
+        function cancelarSexoManual() {
+            document.getElementById('wrapperSexoManual').classList.add('hidden');
+            document.getElementById('wrapperSexoManual').classList.remove('flex');
+            document.getElementById('wrapperSexoSelect').classList.remove('hidden');
+            
+            // Reseta o select para o padrão
+            const select = document.getElementById('animalSexo');
+            select.value = "Macho"; 
+            document.getElementById('animalSexoManual').value = "";
+        }
+
+        // ============================================
+        // Lógica para Mucosas Manual
+        // ============================================
+        function verificarMucosasManual(select) {
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperMucosasSelect').classList.add('hidden');
+                document.getElementById('wrapperMucosasManual').classList.remove('hidden');
+                document.getElementById('wrapperMucosasManual').classList.add('flex');
+                document.getElementById('paramMucosasManual').focus();
+            }
+        }
+
+        function cancelarMucosasManual() {
+            document.getElementById('wrapperMucosasManual').classList.add('hidden');
+            document.getElementById('wrapperMucosasManual').classList.remove('flex');
+            document.getElementById('wrapperMucosasSelect').classList.remove('hidden');
+            
+            // Reseta o select
+            const select = document.getElementById('paramMucosas');
+            select.value = ""; 
+            document.getElementById('paramMucosasManual').value = "";
+        }
+
+        // ============================================
+        // Lógica para Receita Manual
+        // ============================================
+        // Medicamento
+        function verificarMedicamentoManual(select) {
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperMedicamentoSelect').classList.add('hidden');
+                document.getElementById('wrapperMedicamentoManual').classList.remove('hidden');
+                document.getElementById('wrapperMedicamentoManual').classList.add('flex');
+                document.getElementById('rxMedicamentoManual').focus();
+            }
+        }
+        function cancelarMedicamentoManual() {
+            document.getElementById('wrapperMedicamentoManual').classList.add('hidden');
+            document.getElementById('wrapperMedicamentoManual').classList.remove('flex');
+            document.getElementById('wrapperMedicamentoSelect').classList.remove('hidden');
+            document.getElementById('rxMedicamento').value = "";
+            document.getElementById('rxMedicamentoManual').value = "";
+        }
+
+        // Dosagem
+        function verificarDosagemManual(select) {
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperDosagemSelect').classList.add('hidden');
+                document.getElementById('wrapperDosagemManual').classList.remove('hidden');
+                document.getElementById('wrapperDosagemManual').classList.add('flex');
+                document.getElementById('rxDosagemManual').focus();
+            }
+        }
+        function cancelarDosagemManual() {
+            document.getElementById('wrapperDosagemManual').classList.add('hidden');
+            document.getElementById('wrapperDosagemManual').classList.remove('flex');
+            document.getElementById('wrapperDosagemSelect').classList.remove('hidden');
+            document.getElementById('rxDosagem').value = "";
+            document.getElementById('rxDosagemManual').value = "";
+        }
+
+        // Frequencia
+        function verificarFrequenciaManual(select) {
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperFrequenciaSelect').classList.add('hidden');
+                document.getElementById('wrapperFrequenciaManual').classList.remove('hidden');
+                document.getElementById('wrapperFrequenciaManual').classList.add('flex');
+                document.getElementById('rxFrequenciaManual').focus();
+            }
+        }
+        function cancelarFrequenciaManual() {
+            document.getElementById('wrapperFrequenciaManual').classList.add('hidden');
+            document.getElementById('wrapperFrequenciaManual').classList.remove('flex');
+            document.getElementById('wrapperFrequenciaSelect').classList.remove('hidden');
+            document.getElementById('rxFrequencia').value = "";
+            document.getElementById('rxFrequenciaManual').value = "";
+        }
+
+        // Tempo
+        function verificarTempoManual(select) {
+            if (select.value === 'Outro (Digitar)') {
+                document.getElementById('wrapperTempoSelect').classList.add('hidden');
+                document.getElementById('wrapperTempoManual').classList.remove('hidden');
+                document.getElementById('wrapperTempoManual').classList.add('flex');
+                document.getElementById('rxTempoManual').focus();
+            }
+        }
+        function cancelarTempoManual() {
+            document.getElementById('wrapperTempoManual').classList.add('hidden');
+            document.getElementById('wrapperTempoManual').classList.remove('flex');
+            document.getElementById('wrapperTempoSelect').classList.remove('hidden');
+            document.getElementById('rxTempo').value = "";
+            document.getElementById('rxTempoManual').value = "";
+        }
+
+        // Máscara para CPF
+        function mascaraCPF(i) {
+            let v = i.value.replace(/\D/g, ""); // Remove tudo que não é dígito
+            
+            if (v.length > 11) v = v.slice(0, 11); // Limita a 11 dígitos
+
+            // Coloca ponto e traço
+            if (v.length > 9) {
+                v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+            } else if (v.length > 6) {
+                v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+            } else if (v.length > 3) {
+                v = v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+            }
+            
+            i.value = v;
+        }
 
         // Função para Adicionar Medicamento à Lista
         function adicionarMedicamento() {
-            const nome = document.getElementById('rxMedicamento').value;
-            const dose = document.getElementById('rxDosagem').value;
-            const freq = document.getElementById('rxFrequencia').value;
-            const tempo = document.getElementById('rxTempo').value;
+            let nome = document.getElementById('rxMedicamento').value;
+            if (nome === 'Outro (Digitar)') nome = document.getElementById('rxMedicamentoManual').value;
+
+            let dose = document.getElementById('rxDosagem').value;
+            if (dose === 'Outro (Digitar)') dose = document.getElementById('rxDosagemManual').value;
+
+            let freq = document.getElementById('rxFrequencia').value;
+            if (freq === 'Outro (Digitar)') freq = document.getElementById('rxFrequenciaManual').value;
+
+            let tempo = document.getElementById('rxTempo').value;
+            if (tempo === 'Outro (Digitar)') tempo = document.getElementById('rxTempoManual').value;
 
             if (!nome) {
-                alert("Selecione pelo menos um medicamento.");
+                alert("Selecione ou digite pelo menos o nome do medicamento.");
                 return;
             }
+
+            // Formatação do texto
+            // Se dose não estiver vazia, adiciona espaço
+            let textoDose = dose ? ` ${dose}` : '';
+            // Se freq não estiver vazia, adiciona prefixo
+            let textoFreq = freq ? ` - ${freq}` : '';
+            // Se tempo não estiver vazio, adiciona espaço
+            let textoTempo = tempo ? ` ${tempo}` : '';
+
+            // Texto completo
+            let textoCompleto = `<b>${nome}${textoDose}</b>${textoFreq}${textoTempo}.`;
 
             // Cria objeto
             const item = {
                 id: Date.now(),
-                texto: `<b>${nome} ${dose}</b> - Dar 1 un/cp via oral ${freq} ${tempo}.`
+                texto: textoCompleto
             };
 
             listaReceita.push(item);
             renderizarListaReceita();
             
-            // Limpa campos para o próximo
-            document.getElementById('rxMedicamento').value = "";
-            document.getElementById('rxDosagem').value = "";
+            // Limpa campos para o próximo (reseta para select vazio)
+            cancelarMedicamentoManual();
+            cancelarDosagemManual();
+            cancelarFrequenciaManual();
+            cancelarTempoManual();
         }
 
         // Função para Renderizar a Lista no Formulário
@@ -576,22 +1081,83 @@
             renderizarListaReceita();
         }
 
-        function atualizarTituloDocumento() {
-            const tipo = document.getElementById('tipoDocumento').value;
-            document.getElementById('watermarkText').innerText = tipo.split(' ')[0]; 
-        }
-
         function gerarRelatorio() {
+            // Lógica para pegar o Tipo de Documento correto
+            let tipoDocFinal = "";
+            const selectTipoDoc = document.getElementById('tipoDocumento');
+            if (selectTipoDoc.value === 'Outra (Digitar)') {
+                tipoDocFinal = document.getElementById('tipoDocumentoManual').value || "DOCUMENTO";
+            } else {
+                tipoDocFinal = selectTipoDoc.value;
+            }
+
+            // Lógica para pegar a espécie correta
+            let especieFinal = "";
+            const selectEspecie = document.getElementById('animalEspecie');
+            if (selectEspecie.value === 'Outra (Digitar)') {
+                especieFinal = document.getElementById('animalEspecieManual').value || "Não informada";
+            } else {
+                especieFinal = selectEspecie.value || "---";
+            }
+
+            // Lógica para pegar a raça correta (Select ou Manual)
+            let racaFinal = "";
+            const selectRaca = document.getElementById('animalRacaSelect');
+            if (selectRaca.value === 'Outra (Digitar)') {
+                racaFinal = document.getElementById('animalRacaManual').value || "Não informada";
+            } else {
+                racaFinal = selectRaca.value || "---";
+            }
+
+            // Lógica para pegar o sexo correto (Select ou Manual)
+            let sexoFinal = "";
+            const selectSexo = document.getElementById('animalSexo');
+            if (selectSexo.value === 'Outro (Digitar)') {
+                sexoFinal = document.getElementById('animalSexoManual').value || "Não informado";
+            } else {
+                sexoFinal = selectSexo.value || "---";
+            }
+
+            // Lógica para pegar Mucosas correto
+            let mucosasFinal = "";
+            const selectMucosas = document.getElementById('paramMucosas');
+            if (selectMucosas.value === 'Outro (Digitar)') {
+                mucosasFinal = document.getElementById('paramMucosasManual').value || "---";
+            } else {
+                mucosasFinal = selectMucosas.value || "---";
+            }
+
+            // Lógica Idade (Valor + Tipo)
+            const idadeVal = document.getElementById('animalIdadeValor').value;
+            const idadeTipo = document.getElementById('animalIdadeTipo').value;
+            const idadeFinal = idadeVal ? `${idadeVal} ${idadeTipo}` : '---';
+
+            // Preenche os campos manualmente pois têm lógica especial
+            document.getElementById('printTipoDoc').innerText = tipoDocFinal.toUpperCase();
+            document.getElementById('printEspecie').innerText = especieFinal;
+            document.getElementById('printRaca').innerText = racaFinal;
+            document.getElementById('printSexo').innerText = sexoFinal; 
+            document.getElementById('printMucosas').innerText = mucosasFinal;
+            document.getElementById('printIdade').innerText = idadeFinal; // Atualiza Idade
+
+            // Injetar links de telefone no cabeçalho
+            const headerContacts = document.getElementById('printContatos');
+            headerContacts.innerHTML = `
+                <a href="https://wa.me/5586994275801" target="_blank" class="hover:text-black hover:underline">(86) 99427-5801</a> / 
+                <a href="https://wa.me/5588994139399" target="_blank" class="hover:text-black hover:underline">(88) 99413-9399</a>
+            `;
+
+            // Atualiza marca d'água
+            atualizarTituloDocumento();
+
             // Campos simples
             const map = {
                 'clinicaNome': 'printClinicaNome',
                 'clinicaCrmv': 'printCrmv',
                 'clinicaEndereco': 'printEndereco',
-                'clinicaContatos': 'printContatos',
+                // 'clinicaContatos': 'printContatos', // Handled manually
                 'animalNome': 'printAnimal',
-                'animalEspecie': 'printEspecie',
-                'animalRaca': 'printRaca',
-                'animalIdade': 'printIdade',
+                // 'animalIdade': 'printIdade', // Handled manually above
                 'tutorNome': 'printTutor',
                 'tutorCPF': 'printCpf',
                 'animalPeso': 'printPeso',
@@ -599,8 +1165,7 @@
                 'paramFC': 'printFC',
                 'paramFR': 'printFR',
                 'paramTPC': 'printTPC',
-                'paramMucosas': 'printMucosas',
-                'tipoDocumento': 'printTipoDoc',
+                // 'paramMucosas': 'printMucosas', // Handled manually above
                 'textoAnamnese': 'printAnamnese',
                 'textoDiagnostico': 'printDiagnostico'
             };
@@ -624,7 +1189,6 @@
             const divTratamento = document.getElementById('printTratamento');
             let htmlReceita = '';
 
-            // 1. Adiciona a lista de medicamentos numerada
             if (listaReceita.length > 0) {
                 htmlReceita += '<ul style="list-style: none; padding: 0; margin: 0;">';
                 listaReceita.forEach((item, index) => {
@@ -633,7 +1197,6 @@
                 htmlReceita += '</ul>';
             }
 
-            // 2. Adiciona as orientações extras se houver
             const orientacoes = document.getElementById('textoOrientacoes').value;
             if (orientacoes) {
                 if (listaReceita.length > 0) htmlReceita += '<br><hr style="border-top: 1px dashed #ccc; margin: 10px 0;"><br>';
@@ -655,8 +1218,6 @@
                 document.getElementById('printDataExtenso').innerText = date.toLocaleDateString('pt-BR', options);
             }
 
-            atualizarTituloDocumento();
-
             document.getElementById('app-container').classList.add('hidden');
             document.getElementById('report-view').classList.remove('hidden');
             window.scrollTo(0, 0);
@@ -674,20 +1235,141 @@
                 document.getElementById('dataAtendimento').valueAsDate = new Date();
                 listaReceita = [];
                 renderizarListaReceita();
+                atualizarRacas(); 
+                cancelarEspecieManual(); 
+                cancelarTipoDocManual(); 
+                cancelarSexoManual(); 
+                cancelarMucosasManual(); 
+                cancelarMedicamentoManual(); // New
+                cancelarDosagemManual(); // New
+                cancelarFrequenciaManual(); // New
+                cancelarTempoManual(); // New
             }
+        }
+
+        function exportarParaCSV() {
+            // Lógica Tipo Doc CSV
+            let tipoDocCSV = "";
+            const selectTipoDoc = document.getElementById('tipoDocumento');
+            if (selectTipoDoc.value === 'Outra (Digitar)') {
+                tipoDocCSV = document.getElementById('tipoDocumentoManual').value || "DOCUMENTO";
+            } else {
+                tipoDocCSV = selectTipoDoc.value;
+            }
+
+            // Lógica Especie CSV
+            let especieCSV = "";
+            const selectEspecie = document.getElementById('animalEspecie');
+            if (selectEspecie.value === 'Outra (Digitar)') {
+                especieCSV = document.getElementById('animalEspecieManual').value;
+            } else {
+                especieCSV = selectEspecie.value;
+            }
+
+            // Lógica Raca CSV
+            let racaCSV = "";
+            const selectRaca = document.getElementById('animalRacaSelect');
+            if (selectRaca.value === 'Outra (Digitar)') {
+                racaCSV = document.getElementById('animalRacaManual').value;
+            } else {
+                racaCSV = selectRaca.value;
+            }
+
+            // Lógica Sexo CSV
+            let sexoCSV = "";
+            const selectSexo = document.getElementById('animalSexo');
+            if (selectSexo.value === 'Outro (Digitar)') {
+                sexoCSV = document.getElementById('animalSexoManual').value;
+            } else {
+                sexoCSV = selectSexo.value;
+            }
+
+            // Lógica Mucosas CSV
+            let mucosasCSV = "";
+            const selectMucosas = document.getElementById('paramMucosas');
+            if (selectMucosas.value === 'Outro (Digitar)') {
+                mucosasCSV = document.getElementById('paramMucosasManual').value;
+            } else {
+                mucosasCSV = selectMucosas.value;
+            }
+
+            // Lógica Idade CSV
+            const idadeVal = document.getElementById('animalIdadeValor').value;
+            const idadeTipo = document.getElementById('animalIdadeTipo').value;
+            const idadeCSV = idadeVal ? `${idadeVal} ${idadeTipo}` : '';
+
+            // Coleta dados
+            const dados = {
+                Data: document.getElementById('dataAtendimento').value,
+                Tipo: tipoDocCSV,
+                Animal: document.getElementById('animalNome').value,
+                Especie: especieCSV,
+                Raca: racaCSV,
+                Idade: idadeCSV,
+                Peso: document.getElementById('animalPeso').value,
+                Sexo: sexoCSV,
+                Tutor: document.getElementById('tutorNome').value,
+                CPF: document.getElementById('tutorCPF').value,
+                Anamnese: document.getElementById('textoAnamnese').value,
+                Diagnostico: document.getElementById('textoDiagnostico').value,
+                Mucosas: mucosasCSV,
+                Receita: listaReceita.map(i => i.texto.replace(/<[^>]*>/g, '')).join('; ') // Remove HTML tags
+            };
+
+            // Linha de dados (escapando aspas e quebras de linha)
+            const values = Object.values(dados).map(val => {
+                const stringVal = String(val || '');
+                return `"${stringVal.replace(/"/g, '""')}"`; // Escapa aspas duplas
+            });
+
+            // Apenas os valores, sem cabeçalho
+            const csvContent = values.join(','); 
+
+            // Download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Dados_${dados.Animal}_${dados.Data}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function baixarPDF() {
             const element = document.getElementById('documento-final');
-            const animal = document.getElementById('printAnimal').innerText;
-            const tipo = document.getElementById('printTipoDoc').innerText;
             
+            const animal = document.getElementById('printAnimal').innerText.trim() || "SemNome";
+            
+            // Pegar a data do input para formatar
+            const dataInput = document.getElementById('dataAtendimento').value;
+            let dataFormatada = "";
+            if(dataInput) {
+                const partes = dataInput.split('-'); // AAAA-MM-DD
+                dataFormatada = `${partes[2]}-${partes[1]}-${partes[0]}`; // DD-MM-AAAA
+            } else {
+                // Fallback para data de hoje se não houver no input
+                const hoje = new Date();
+                dataFormatada = hoje.toLocaleDateString('pt-BR').replace(/\//g, '-');
+            }
+
+            const nomeFixo = "DR.MANUEL VICTOR - CRMV-PI 02120 VP";
+            
+            // Montar o nome final
+            // Ex: BRENDA_30-12-2025_DR.MANUEL VICTOR - CRMV-PI 02120 VP.pdf
+            const nomeArquivo = `${animal}_${dataFormatada}_${nomeFixo}.pdf`;
+            
+            // Calcula a altura em mm baseada no conteúdo (1px = 0.264583 mm)
+            // Adiciona uma margem de segurança
+            const contentHeight = element.scrollHeight * 0.264583; 
+            const finalHeight = Math.max(contentHeight, 297); // No mínimo A4
+
             const opt = {
                 margin: 0,
-                filename: `${tipo}_${animal}.pdf`,
+                filename: nomeArquivo,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                jsPDF: { unit: 'mm', format: [210, finalHeight], orientation: 'portrait' }
             };
 
             html2pdf().set(opt).from(element).save();
